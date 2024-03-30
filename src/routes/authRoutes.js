@@ -19,27 +19,53 @@ router.post('./register', async (req, res) => {
             return res.status(400).json({ message: 'Nombre de usuario Ocupado' });
         }
 
-        // Cifrar la contraseña
+
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Crear un nuevo usuario
+
         const newUser = new User({
             email,
             username,
             password: hashedPassword
         });
 
-        // Guardar el usuario en la base de datos
         await newUser.save();
 
-        // Generar token JWT
         const token = jwt.sign({ userId: newUser._id }, 'secreto');
 
-        // Enviar la respuesta con el token
         res.status(201).json({ token });
     } catch (error) {
         console.error('Error al registrar usuario:', error);
         res.status(500).json({ message: 'Error al registrar usuario' });
+    }
+});
+
+router.post('/login', async (req, res) => {
+    try {
+        const { emailOrUsername, password } = req.body;
+
+        const user = await User.findOne({
+            $or: [
+                { email: emailOrUsername },
+                { username: emailOrUsername }
+            ]
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: 'Credenciales inválidas' });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Credenciales inválidas' });
+        }
+
+        const token = jwt.sign({ userId: user._id }, 'secreto');
+
+        res.status(200).json({ token });
+    } catch (error) {
+        console.error('Error al iniciar sesión:', error);
+        res.status(500).json({ message: 'Error al iniciar sesión' });
     }
 });
 
